@@ -65,7 +65,6 @@ def run_sslscan(application="", port=""):
         output_file.flush()
         output_file.close()
     except OSError as e:
-        print e.errno
         if e.errno == os.errno.ENOENT:
             print "Application not installed"
         else:
