@@ -1,11 +1,14 @@
 #!/usr/bin/python
 
 __author__ = "Sumit Shrivastava"
-__version__ = "v1.1.0"
+__version__ = "v1.1.1"
 
 ###
 #   Change Log:
-#       v1.1.0
+#       v1.1.1 - 31-Jul-17
+#       Minor Bug Fixes and Enhancements
+#
+#       v1.1.0 - 31-Jul-17
 #       Added automatic sslscan process run, and provide the output
 ###
 
@@ -38,7 +41,6 @@ crime = False
 heartbleed = False
 beast = False
 os_name = ""
-verbose = True
 
 
 def check_os_name():
@@ -46,10 +48,10 @@ def check_os_name():
 
 
 def run_sslscan(application="", port=""):
-    os_name = check_os_name()
+    global os_name
+    os_name= check_os_name()
     ret_value = True
-    if verbose:
-        print "[+] Running SSLScan on %s:%s"%(application, port)
+    print "[+] Running SSLScan on %s:%s"%(application, port)
     try:
         if os_name == "Windows":
             sslscan_proc = subprocess.Popen(["sslscan.exe", application + ":" + port], stdout=subprocess.PIPE)
@@ -58,13 +60,12 @@ def run_sslscan(application="", port=""):
         if os_name == "Darwin":
             sslscan_proc = subprocess.Popen(["sslscan", application + ":" + port], stdout=subprocess.PIPE)
         output_file = open("tmp_output.txt", "w")
-        if verbose:
-            print "[+] Output written to temporary file."
         for line in sslscan_proc.stdout:
             output_file.write(line)
         output_file.flush()
         output_file.close()
     except OSError as e:
+        print e.errno
         if e.errno == os.errno.ENOENT:
             print "Application not installed"
         else:
@@ -74,17 +75,11 @@ def run_sslscan(application="", port=""):
 
 
 def parse_output():
-    if verbose:
-        print "[+] Reading temporary file"
     input_file = open("tmp_output.txt", "r")
     input_data = input_file.readlines()
     input_data = remove_color(input_data)
     input_file.close()
-    if verbose:
-        print "[+] Cleaning temporary file"
     os.remove("tmp_output.txt")
-    if verbose:
-        print "[+] Parsing output"
     for line in input_data:
         if application_re.match(line):
             line_split = line.split(" ")
@@ -110,22 +105,24 @@ def remove_color(file_data = []):
 
 def check_cipher_vulnerabilities(line = ""):
     # this will check vulnerabilities in cipher suites
-    if crime_re.match(line):
+    global crime, ssl_drown, ssl_poodle, heartbleed, beast
+    if not crime and crime_re.match(line):
         if crime_re.match(line).group(1) == "enabled":
             crime = True
-        if ssl_drown_re.search(line):
-            ssl_drown = True
-        if ssl_poodle_re.search(line):
-            ssl_poodle = True
-        if heartbleed_re.search(line):
-            if not(not_re.search(line)):
-                heartbleed = True
-        if tls_beast_re.search(line):
-            beast = True
+    if not ssl_drown and ssl_drown_re.search(line):
+        ssl_drown = True
+    if not ssl_poodle and ssl_poodle_re.search(line):
+        ssl_poodle = True
+    if not heartbleed and heartbleed_re.search(line):
+        if not(not_re.search(line)):
+            heartbleed = True
+    if not beast and tls_beast_re.search(line):
+        beast = True
 
 
 def check_ssl_vulnerabilities(line = ""):
     # this will check vulnerabilities in ssl configuration
+    global obsolete_version, weak_ciphers, logjam
     line_split = line.split(" ")
     cipher_text = False
     if preferred_cipher_re.match(line):
@@ -146,6 +143,7 @@ def check_ssl_vulnerabilities(line = ""):
 
 
 def report_vulnerabilities():
+    global vulnerabilities
     vulnerabilities["heartbleed"] = heartbleed
     vulnerabilities["crime"] = crime
     vulnerabilities["drown"] = ssl_drown
@@ -163,7 +161,7 @@ def print_vulnerabilities():
     if vulnerabilities["crime"]:
         print "[!] Crime: Vulnerable"
     if vulnerabilities["poodle"]:
-        print "[!] Poodle: Vulnerable"
+        print "[!] SSL / TLS Poodle: Vulnerable"
     if vulnerabilities["beast"]:
         print "[!] Beast: Vulnerable"
     if vulnerabilities["drown"]:
