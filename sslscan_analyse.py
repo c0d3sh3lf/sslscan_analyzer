@@ -1,10 +1,13 @@
 #!/usr/bin/python
 
 __author__ = "Sumit Shrivastava"
-__version__ = "v1.1.1"
+__version__ = "v1.1.2"
 
 ###
 #   Change Log:
+#       v1.1.2 - 31-Jul-17
+#       Minor Bug Fixes and Enhancements
+#
 #       v1.1.1 - 31-Jul-17
 #       Minor Bug Fixes and Enhancements
 #
@@ -22,8 +25,8 @@ not_re = re.compile(r"not")
 application_re = re.compile(r"^Testing")
 
 # Vulnerabilities regular expressions
-logjam_re = re.compile(r"\-?(\bDHE\b|\bEDH\b)\-?")
-weak_ciphers_re = re.compile(r"\-?(\bCBC\b|\bCBC3\b|\bRC2\b|\bRC4\b|\bNULL\b|\bAnon\b)\-?")
+logjam_re = re.compile(r"\bDHE\b|\bEDH\b")
+weak_ciphers_re = re.compile(r"\bCBC\b|\bCBC3\b|\bRC2\b|\bRC4\b|\bNULL\b|\bAnon\b")
 obsolete_version_re = re.compile(r"TLSv1.0|SSLv3|SSLv2")
 ssl_poodle_re = re.compile(r"SSLv3|TLSv1.0")
 tls_beast_re = re.compile(r"TLSv1.0")
@@ -125,6 +128,8 @@ def check_ssl_vulnerabilities(line = ""):
     global obsolete_version, weak_ciphers, logjam
     line_split = line.split(" ")
     cipher_text = False
+    ssl_ver = ""
+    cipher = ""
     if preferred_cipher_re.match(line):
         ssl_ver = line_split[1]
         cipher = line_split[6]
@@ -136,9 +141,9 @@ def check_ssl_vulnerabilities(line = ""):
     if cipher_text:
         if obsolete_version_re.match(ssl_ver):
             obsolete_version.append(ssl_ver)
-        if weak_ciphers_re.match(cipher):
+        if weak_ciphers_re.search(cipher):
             weak_ciphers.append(cipher)
-        if logjam_re.match(cipher):
+        if logjam_re.search(cipher):
             logjam.append(cipher)
 
 
