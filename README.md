@@ -11,7 +11,9 @@ Analyzes the SSL Scan output
 
 
 ## Change Log:
-   ### v1.1.0
+   ### v1.1.1 - 31-Jul-17
+   - Minor Bug Fixes and Enhancements
+   ### v1.1.0 - 31-Jul-17
    - Added automatic sslscan process run, and provide the output to analyse
    - Added options to input hostname and port
     
