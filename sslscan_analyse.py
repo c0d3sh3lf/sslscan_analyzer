@@ -1,9 +1,15 @@
 #!/usr/bin/python
 
 __author__ = "Sumit Shrivastava"
-__version__ = "v1.0.0"
+__version__ = "v1.1.0"
 
-import re, sys
+###
+#   Change Log:
+#       v1.1.0
+#       Added automatic sslscan process run, and provide the output
+###
+
+import re, sys, platform, subprocess, optparse, os
 
 # Generic regular expressions
 preferred_cipher_re = re.compile(r"^Preferred")
@@ -31,6 +37,64 @@ ssl_drown = False
 crime = False
 heartbleed = False
 beast = False
+os_name = ""
+verbose = True
+
+
+def check_os_name():
+    return platform.system()
+
+
+def run_sslscan(application="", port=""):
+    os_name = check_os_name()
+    ret_value = True
+    if verbose:
+        print "[+] Running SSLScan on %s:%s"%(application, port)
+    try:
+        if os_name == "Windows":
+            sslscan_proc = subprocess.Popen(["sslscan.exe", application + ":" + port], stdout=subprocess.PIPE)
+        if os_name == "Linux":
+            sslscan_proc = subprocess.Popen(["sslscan", application + ":" + port], stdout=subprocess.PIPE)
+        if os_name == "Darwin":
+            sslscan_proc = subprocess.Popen(["sslscan", application + ":" + port], stdout=subprocess.PIPE)
+        output_file = open("tmp_output.txt", "w")
+        if verbose:
+            print "[+] Output written to temporary file."
+        for line in sslscan_proc.stdout:
+            output_file.write(line)
+        output_file.flush()
+        output_file.close()
+    except OSError as e:
+        print e.errno
+        if e.errno == os.errno.ENOENT:
+            print "Application not installed"
+        else:
+            print "[-] Something went wrong.", e.strerror
+        ret_value = False
+    return ret_value
+
+
+def parse_output():
+    if verbose:
+        print "[+] Reading temporary file"
+    input_file = open("tmp_output.txt", "r")
+    input_data = input_file.readlines()
+    input_data = remove_color(input_data)
+    input_file.close()
+    if verbose:
+        print "[+] Cleaning temporary file"
+    os.remove("tmp_output.txt")
+    if verbose:
+        print "[+] Parsing output"
+    for line in input_data:
+        if application_re.match(line):
+            line_split = line.split(" ")
+            application = line_split[3]
+            port = line_split[6]
+        check_ssl_vulnerabilities(line)
+        check_cipher_vulnerabilities(line)
+    print "[+] SSL Report for %s:%s"%(application, port)
+    print_vulnerabilities()
 
 
 def unique_list(mylist = []):
@@ -120,25 +184,19 @@ def print_vulnerabilities():
 
 
 def main():
-    input_file = open(sys.argv[1], "r")
-    input_data = input_file.readlines()
-    input_file.close()
-    input_data = remove_color(input_data)
-    for line in input_data:
-        if application_re.match(line):
-            line_split = line.split(" ")
-            application = line_split[3]
-            port = line_split[6]
-        check_ssl_vulnerabilities(line)
-        check_cipher_vulnerabilities(line)
-    print "[+] SSL Report for %s:%s"%(application, port)
-    print_vulnerabilities()
-
+    script_path = str(sys.argv[0]).split(os.sep)
+    script_name = str(script_path[len(script_path)-1])
+    parser = optparse.OptionParser("Usage: "+script_name+" -H HOSTNAME [-p PORT]\nScript Author: Sumit Shrivastava (@invad3rsam)\nScript Version:" + str(__version__)+"\n")
+    parser.add_option("-H", "--host", dest="host", type=str, help="IP address or Domain name to scan")
+    parser.add_option("-p", "--port", dest="port", default=443, type=int, help="Port number to be scanned. Default is 443.")
+    (options, args) = parser.parse_args()
+    if not(options.host):
+        print "[-] Hostname / Domain required."
+        parser.print_help()
+        sys.exit(1)
+    else:
+        if run_sslscan(options.host, str(options.port)):
+            parse_output()
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print "[-] Filename not provided"
-        print "[!] Usage:", sys.argv[0], "<SSLScan_OUTPUT_FILE>"
-        sys.exit(0)
-
     main()
