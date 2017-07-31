@@ -11,6 +11,8 @@ Analyzes the SSL Scan output
 
 
 ## Change Log:
+   ### v1.1.2 - 31-Jul-17
+   - Minor Bug Fixes and Enhancements
    ### v1.1.1 - 31-Jul-17
    - Minor Bug Fixes and Enhancements
    ### v1.1.0 - 31-Jul-17
