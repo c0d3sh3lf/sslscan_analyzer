@@ -11,6 +11,9 @@ Analyzes the SSL Scan output
 
 
 ## Change Log:
+   ### v1.1.3 - 01-Aug-17
+   - Added Verbosity to the output
+   - Added output file option (output as text)
    ### v1.1.2 - 31-Jul-17
    - Minor Bug Fixes and Enhancements
    ### v1.1.1 - 31-Jul-17
