@@ -5,6 +5,8 @@ Analyzes the SSL Scan output
  - -h, --help            show this help message and exit
  - -H HOST, --host=HOST  IP address or Domain name to scan
  - -p PORT, --port=PORT  Port number to be scanned. Default is 443.
+ - -v, --verbose         Verbose output
+ - -o OUTPUT, --output=OUTPUT Output file
 
 ## Dependencies:
 - [sslscan](https://github.com/rbsec/sslscan/releases?after=1.11.1-rbsec)
