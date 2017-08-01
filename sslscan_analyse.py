@@ -1,10 +1,14 @@
 #!/usr/bin/python
 
 __author__ = "Sumit Shrivastava"
-__version__ = "v1.1.2"
+__version__ = "v1.1.3"
 
 ###
 #   Change Log:
+#       v1.1.3 - 01-Aug-17
+#       Added Verbosity to the output
+#       Added output file option (output as text)
+#
 #       v1.1.2 - 31-Jul-17
 #       Minor Bug Fixes and Enhancements
 #
@@ -44,6 +48,9 @@ crime = False
 heartbleed = False
 beast = False
 os_name = ""
+verbose = False
+application = ""
+port = ""
 
 
 def check_os_name():
@@ -67,6 +74,8 @@ def run_sslscan(application="", port=""):
             output_file.write(line)
         output_file.flush()
         output_file.close()
+        if verbose:
+            print "[+] Output written to temporary file"
     except OSError as e:
         print e.errno
         if e.errno == os.errno.ENOENT:
@@ -78,11 +87,16 @@ def run_sslscan(application="", port=""):
 
 
 def parse_output():
+    if verbose:
+        print "[+] Analyzing the output"
+    global application, port
     input_file = open("tmp_output.txt", "r")
     input_data = input_file.readlines()
     input_data = remove_color(input_data)
     input_file.close()
     os.remove("tmp_output.txt")
+    if verbose:
+        print "[+] Cleaning up temporary file"
     for line in input_data:
         if application_re.match(line):
             line_split = line.split(" ")
@@ -90,8 +104,6 @@ def parse_output():
             port = line_split[6]
         check_ssl_vulnerabilities(line)
         check_cipher_vulnerabilities(line)
-    print "[+] SSL Report for %s:%s"%(application, port)
-    print_vulnerabilities()
 
 
 def unique_list(mylist = []):
@@ -161,6 +173,7 @@ def report_vulnerabilities():
 
 def print_vulnerabilities():
     report_vulnerabilities()
+    print "[+] SSL Report for %s:%s"%(application, port)
     if vulnerabilities["heartbleed"]:
         print "[!] Heartbleed: Vulnerable"
     if vulnerabilities["crime"]:
@@ -185,13 +198,61 @@ def print_vulnerabilities():
             print version
 
 
+def write_to_file(filename = ""):
+    report_vulnerabilities()
+    outputfile = open(filename, "w")
+    outputdata = ""
+    outputdata += "[+] SSL Report for " + application + ":" + port
+    if vulnerabilities["heartbleed"]:
+        outputdata += "[!] Heartbleed: Vulnerable"
+        outputdata += "\n"
+    if vulnerabilities["crime"]:
+        outputdata +=  "[!] Crime: Vulnerable"
+        outputdata += "\n"
+    if vulnerabilities["poodle"]:
+        outputdata +=  "[!] SSL / TLS Poodle: Vulnerable"
+        outputdata += "\n"
+    if vulnerabilities["beast"]:
+        outputdata +=  "[!] Beast: Vulnerable"
+        outputdata += "\n"
+    if vulnerabilities["drown"]:
+        outputdata +=  "[!] Drown: Vulnerable"
+        outputdata += "\n"
+    if len(vulnerabilities["logjam"]) > 0:
+        outputdata += "\n[!] Following " + str(len(vulnerabilities["logjam"])) + " cipher(s) vulnerable to logjam attack:"
+        outputdata += "\n"
+        for cipher in vulnerabilities["logjam"]:
+            outputdata += cipher
+            outputdata += "\n"
+    if len(vulnerabilities["weak_ciphers"]) > 0:
+        outputdata +=  "\n[!] Following " + str(len(vulnerabilities["weak_ciphers"])) + " cipher(s) is / are considered cryptographically weak:"
+        outputdata += "\n"
+        for cipher in vulnerabilities["weak_ciphers"]:
+            outputdata += cipher
+            outputdata += "\n"
+    if len(vulnerabilities["obsolete_versions"]) > 0:
+        outputdata += "\n[!] Following " + str(len(vulnerabilities["obsolete_versions"])) + " SSL / TLS version(s) is / are obsolete:"
+        outputdata += "\n"
+        for version in vulnerabilities["obsolete_versions"]:
+            outputdata += version
+            outputdata += "\n"
+    outputfile.write(outputdata)
+    outputfile.flush()
+    outputfile.close()
+    print "[+] Output written to '%s'"%(filename)
+
+
 def main():
     script_path = str(sys.argv[0]).split(os.sep)
     script_name = str(script_path[len(script_path)-1])
     parser = optparse.OptionParser("Usage: "+script_name+" -H HOSTNAME [-p PORT]\nScript Author: Sumit Shrivastava (@invad3rsam)\nScript Version:" + str(__version__)+"\n")
     parser.add_option("-H", "--host", dest="host", type=str, help="IP address or Domain name to scan")
     parser.add_option("-p", "--port", dest="port", default=443, type=int, help="Port number to be scanned. Default is 443.")
+    parser.add_option("-v", "--verbose", dest="ver", action="store_true", default=False, help="Verbose output")
+    parser.add_option("-o", "--output", dest="output", type=str, help="Output file")
     (options, args) = parser.parse_args()
+    global verbose
+    verbose = options.ver
     if not(options.host):
         print "[-] Hostname / Domain required."
         parser.print_help()
@@ -199,6 +260,14 @@ def main():
     else:
         if run_sslscan(options.host, str(options.port)):
             parse_output()
+            if options.output:
+                filename_split = options.output.split(".")
+                if not(filename_split[len(filename_split) - 1] == "txt"):
+                    options.output += ".txt"
+                write_to_file(options.output)
+            else:
+                print_vulnerabilities()
+
 
 if __name__ == "__main__":
     main()
